@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hiragana Trainer</title>
+<style>
+  :root {
+    --bg: #fdf6f0;
+    --card: #ffffff;
+    --ink: #2b2b2b;
+    --accent: #c8553d;
+    --accent-soft: #f2d7ce;
+    --good: #3a7d44;
+    --bad: #c8553d;
+    --muted: #8a8378;
+    --row-label-bg: #f6ede6;
+    --irregular-bg: #fbeae2;
+    --result-correct-bg: #eaf5ec;
+    --result-incorrect-bg: #fbeae2;
+    --shadow: rgba(0,0,0,0.06);
+    --overlay-bg: rgba(0,0,0,0.45);
+  }
+  body.dark {
+    --bg: #1c1a18;
+    --card: #262320;
+    --ink: #f0e9e2;
+    --accent: #e08260;
+    --accent-soft: #4a352d;
+    --good: #6fbf7a;
+    --bad: #e08260;
+    --muted: #a89c8f;
+    --row-label-bg: #332b25;
+    --irregular-bg: #3d2c26;
+    --result-correct-bg: #253c29;
+    --result-incorrect-bg: #3d2c26;
+    --shadow: rgba(0,0,0,0.35);
+    --overlay-bg: rgba(0,0,0,0.65);
+  }
+  body {
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .top-buttons {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .icon-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    background: var(--card);
+    color: var(--ink);
+    box-shadow: 0 2px 10px var(--shadow);
+    font-size: 1.2rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .icon-toggle:hover {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  button {
+    font-family: inherit;
+    font-size: 1rem;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  button:hover { opacity: 0.9; }
+  button:active { transform: scale(0.97); }
+  button.secondary {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px var(--shadow);
+    padding: 32px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+
+  .score {
+    color: var(--muted);
+    margin-bottom: 16px;
+    font-size: 0.95rem;
+  }
+
+  .character {
+    font-size: 5rem;
+    margin: 20px 0;
+    line-height: 1;
+  }
+
+  input[type="text"] {
+    font-family: inherit;
+    font-size: 1.2rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 2px solid var(--accent-soft);
+    width: 100%;
+    max-width: 220px;
+    text-align: center;
+    outline: none;
+  }
+  input[type="text"]:focus {
+    border-color: var(--accent);
+  }
+
+  .feedback {
+    margin-top: 16px;
+    min-height: 28px;
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  .feedback.correct { color: var(--good); }
+  .feedback.incorrect { color: var(--bad); }
+
+  .quiz-controls {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .placeholder {
+    color: var(--muted);
+  }
+
+  .mode-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .length-picker {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--accent-soft);
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  select {
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 9px 12px;
+    border-radius: 10px;
+    border: 2px solid var(--accent-soft);
+    background: var(--card);
+    color: var(--ink);
+    outline: none;
+  }
+  select:focus {
+    border-color: var(--accent);
+  }
+
+  .progress {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+
+  .results-list {
+    text-align: left;
+    max-height: 320px;
+    overflow-y: auto;
+    margin-top: 16px;
+    padding-right: 4px;
+  }
+  .result-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+  }
+  .result-item.correct { background: var(--result-correct-bg); }
+  .result-item.incorrect { background: var(--result-incorrect-bg); }
+  .result-item .result-kana {
+    font-size: 1.2rem;
+    min-width: 32px;
+  }
+  .result-item .result-answers {
+    flex: 1;
+    text-align: right;
+    color: var(--muted);
+  }
+  .result-item.incorrect .result-answers .your-answer {
+    color: var(--bad);
+    text-decoration: line-through;
+    margin-right: 6px;
+  }
+  .result-item .result-answers .correct-answer {
+    color: var(--good);
+    font-weight: 600;
+  }
+
+  /* Overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--overlay-bg);
+    display: none;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 16px;
+    overflow-y: auto;
+    z-index: 100;
+  }
+  .overlay.open { display: flex; }
+  .overlay-content {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 900px;
+    width: 100%;
+    position: relative;
+  }
+  .overlay-content h2 {
+    margin-top: 0;
+    text-align: center;
+  }
+  .close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    padding: 0;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .chart-block {
+    margin-bottom: 24px;
+  }
+  .chart-block h3 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .chart-row-flex {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  table.kana-table {
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  table.kana-table th,
+  table.kana-table td {
+    border: 1px solid var(--accent-soft);
+    text-align: center;
+    padding: 0;
+    width: 54px;
+    height: 48px;
+  }
+  table.kana-table th {
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: lowercase;
+  }
+  table.kana-table td.row-label {
+    background: var(--row-label-bg);
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    width: 28px;
+  }
+  table.kana-table td.kana-cell {
+    background: var(--card);
+  }
+  table.kana-table td.kana-cell.irregular {
+    background: var(--irregular-bg);
+  }
+  table.kana-table td.kana-cell.empty {
+    background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 5px,
+      var(--bg) 5px,
+      var(--bg) 6px
+    );
+  }
+  .kana-cell .kana {
+    font-size: 1.3rem;
+    display: block;
+    line-height: 1.1;
+  }
+  .kana-cell .romaji-sub {
+    font-size: 0.6rem;
+    color: var(--accent);
+    display: block;
+    line-height: 1;
+    margin-top: -1px;
+  }
+
+  footer {
+    margin-top: 24px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+</style>
+</head>
+<body>
+
+  <h1>ひらがな Trainer</h1>
+  <div class="subtitle">Learn Hiragana through flashcard quizzes</div>
+
+  <div class="top-buttons">
+    <button type="button" id="showChartBtn">Hiragana Chart</button>
+  </div>
+
+  <button type="button" id="darkModeBtn" class="icon-toggle" title="Toggle dark mode">☀️</button>
+
+  <div class="card" id="quizCard">
+
+    <!-- Mode selection -->
+    <div id="menuView">
+      <div class="mode-buttons">
+        <button type="button" id="quizModeBtn" title="Fixed-length round. No feedback until the end, then see your full results.">Quiz Mode</button>
+        <button type="button" id="flashModeBtn" class="secondary" title="Unlimited flashcards. See the correct answer after every question.">Flash Mode</button>
+      </div>
+      <div class="length-picker" id="lengthPicker" style="display:none;">
+        <label for="lengthSelect">Questions:</label>
+        <select id="lengthSelect"></select>
+        <button type="button" id="beginQuizBtn">Begin</button>
+      </div>
+    </div>
+
+    <!-- Active practice (quiz or flash) -->
+    <div id="practiceView" style="display:none;">
+      <div class="progress" id="progressDisplay"></div>
+      <div class="score" id="scoreDisplay"></div>
+      <div class="character" id="characterDisplay"></div>
+      <input type="text" id="answerInput" placeholder="type romaji..." autocomplete="off" enterkeyhint="go">
+      <div class="feedback" id="feedback"></div>
+      <div class="quiz-controls">
+        <button type="button" id="submitBtn">Submit</button>
+        <button type="button" id="nextBtn" class="secondary" style="display:none;">Next</button>
+      </div>
+      <div class="quiz-controls">
+        <button type="button" id="backToMenuBtn" class="secondary">Back to Menu</button>
+      </div>
+    </div>
+
+    <!-- Quiz Mode results -->
+    <div id="resultsView" style="display:none;">
+      <h2>Quiz Complete</h2>
+      <div class="score" id="finalScoreDisplay"></div>
+      <div class="results-list" id="resultsList"></div>
+      <div class="quiz-controls">
+        <button type="button" id="tryAgainBtn">Try Again</button>
+        <button type="button" id="backToMenuBtn2" class="secondary">Back to Menu</button>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>All 46 base kana, dakuten, handakuten, and yōon combinations included.</footer>
+
+  <!-- Overlay -->
+  <div class="overlay" id="overlay">
+    <div class="overlay-content">
+      <button type="button" class="close-btn" id="closeOverlayBtn">&times;</button>
+      <h2>Hiragana Chart</h2>
+      <div id="chartContainer"></div>
+    </div>
+  </div>
+
+<script>
+  // ---- Dark mode ----
+  (function initDarkMode() {
+    const darkModeBtn = document.getElementById('darkModeBtn');
+    const stored = localStorage.getItem('hiragana-dark-mode');
+    const prefersDark = !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    const shouldBeDark = stored === 'on' || (stored === null && prefersDark);
+
+    function applyDarkMode(isDark) {
+      document.body.classList.toggle('dark', isDark);
+      darkModeBtn.textContent = isDark ? '🌙' : '☀️';
+      darkModeBtn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    }
+
+    applyDarkMode(shouldBeDark);
+
+    darkModeBtn.addEventListener('click', () => {
+      const isDark = !document.body.classList.contains('dark');
+      applyDarkMode(isDark);
+      localStorage.setItem('hiragana-dark-mode', isDark ? 'on' : 'off');
+    });
+  })();
+
+  // ---- Data: full hiragana set, structured to mirror a textbook a-i-u-e-o grid ----
+  // Each cell: {kana, romaji} or null for a non-existent combination.
+  // "irregular: true" marks cells whose romaji doesn't follow the row's regular pattern (shown as subscript, like the PDF).
+
+  const mainRows = [
+    { label: "", cells: [
+      {kana:"あ", romaji:"a"}, {kana:"い", romaji:"i"}, {kana:"う", romaji:"u"}, {kana:"え", romaji:"e"}, {kana:"お", romaji:"o"}
+    ]},
+    { label: "k", cells: [
+      {kana:"か", romaji:"ka"}, {kana:"き", romaji:"ki"}, {kana:"く", romaji:"ku"}, {kana:"け", romaji:"ke"}, {kana:"こ", romaji:"ko"}
+    ]},
+    { label: "s", cells: [
+      {kana:"さ", romaji:"sa"}, {kana:"し", romaji:"shi", irregular:true}, {kana:"す", romaji:"su"}, {kana:"せ", romaji:"se"}, {kana:"そ", romaji:"so"}
+    ]},
+    { label: "t", cells: [
+      {kana:"た", romaji:"ta"}, {kana:"ち", romaji:"chi", irregular:true}, {kana:"つ", romaji:"tsu", irregular:true}, {kana:"て", romaji:"te"}, {kana:"と", romaji:"to"}
+    ]},
+    { label: "n", cells: [
+      {kana:"な", romaji:"na"}, {kana:"に", romaji:"ni"}, {kana:"ぬ", romaji:"nu"}, {kana:"ね", romaji:"ne"}, {kana:"の", romaji:"no"}
+    ]},
+    { label: "h", cells: [
+      {kana:"は", romaji:"ha"}, {kana:"ひ", romaji:"hi"}, {kana:"ふ", romaji:"fu", irregular:true}, {kana:"へ", romaji:"he"}, {kana:"ほ", romaji:"ho"}
+    ]},
+    { label: "m", cells: [
+      {kana:"ま", romaji:"ma"}, {kana:"み", romaji:"mi"}, {kana:"む", romaji:"mu"}, {kana:"め", romaji:"me"}, {kana:"も", romaji:"mo"}
+    ]},
+    { label: "y", cells: [
+      {kana:"や", romaji:"ya"}, null, {kana:"ゆ", romaji:"yu"}, null, {kana:"よ", romaji:"yo"}
+    ]},
+    { label: "r", cells: [
+      {kana:"ら", romaji:"ra"}, {kana:"り", romaji:"ri"}, {kana:"る", romaji:"ru"}, {kana:"れ", romaji:"re"}, {kana:"ろ", romaji:"ro"}
+    ]},
+    { label: "w", cells: [
+      {kana:"わ", romaji:"wa"}, null, null, null, {kana:"を", romaji:"o", irregular:true}
+    ]}
+  ];
+  const nCell = { label: "", cells: [{kana:"ん", romaji:"n", irregular:true}] }; // standalone, outside the a-i-u-e-o grid
+
+  const voicedTop = [
+    { label: "g", cells: [{kana:"が",romaji:"ga"},{kana:"ぎ",romaji:"gi"},{kana:"ぐ",romaji:"gu"},{kana:"げ",romaji:"ge"},{kana:"ご",romaji:"go"}] },
+    { label: "z", cells: [{kana:"ざ",romaji:"za"},{kana:"じ",romaji:"ji",irregular:true},{kana:"ず",romaji:"zu"},{kana:"ぜ",romaji:"ze"},{kana:"ぞ",romaji:"zo"}] },
+    { label: "d", cells: [{kana:"だ",romaji:"da"},{kana:"ぢ",romaji:"ji",irregular:true},{kana:"づ",romaji:"zu",irregular:true},{kana:"で",romaji:"de"},{kana:"ど",romaji:"do"}] }
+  ];
+  const voicedBottom = [
+    { label: "b", cells: [{kana:"ば",romaji:"ba"},{kana:"び",romaji:"bi"},{kana:"ぶ",romaji:"bu"},{kana:"べ",romaji:"be"},{kana:"ぼ",romaji:"bo"}] },
+    { label: "p", cells: [{kana:"ぱ",romaji:"pa"},{kana:"ぴ",romaji:"pi"},{kana:"ぷ",romaji:"pu"},{kana:"ぺ",romaji:"pe"},{kana:"ぽ",romaji:"po"}] }
+  ];
+
+  const yoonLeft = [
+    { label: "k", cells: [{kana:"きゃ",romaji:"kya"},{kana:"きゅ",romaji:"kyu"},{kana:"きょ",romaji:"kyo"}] },
+    { label: "s", cells: [{kana:"しゃ",romaji:"sha"},{kana:"しゅ",romaji:"shu"},{kana:"しょ",romaji:"sho"}] },
+    { label: "t", cells: [{kana:"ちゃ",romaji:"cha"},{kana:"ちゅ",romaji:"chu"},{kana:"ちょ",romaji:"cho"}] },
+    { label: "n", cells: [{kana:"にゃ",romaji:"nya"},{kana:"にゅ",romaji:"nyu"},{kana:"にょ",romaji:"nyo"}] },
+    { label: "h", cells: [{kana:"ひゃ",romaji:"hya"},{kana:"ひゅ",romaji:"hyu"},{kana:"ひょ",romaji:"hyo"}] },
+    { label: "m", cells: [{kana:"みゃ",romaji:"mya"},{kana:"みゅ",romaji:"myu"},{kana:"みょ",romaji:"myo"}] }
+  ];
+  const yoonRight = [
+    { label: "r", cells: [{kana:"りゃ",romaji:"rya"},{kana:"りゅ",romaji:"ryu"},{kana:"りょ",romaji:"ryo"}] },
+    { label: "g", cells: [{kana:"ぎゃ",romaji:"gya"},{kana:"ぎゅ",romaji:"gyu"},{kana:"ぎょ",romaji:"gyo"}] },
+    { label: "j", cells: [{kana:"じゃ",romaji:"ja"},{kana:"じゅ",romaji:"ju"},{kana:"じょ",romaji:"jo"}] },
+    { label: "b", cells: [{kana:"びゃ",romaji:"bya"},{kana:"びゅ",romaji:"byu"},{kana:"びょ",romaji:"byo"}] },
+    { label: "p", cells: [{kana:"ぴゃ",romaji:"pya"},{kana:"ぴゅ",romaji:"pyu"},{kana:"ぴょ",romaji:"pyo"}] }
+  ];
+
+  // Flatten every kana across all tables into a single quiz pool
+  const quizPool = [];
+  [mainRows, [nCell], voicedTop, voicedBottom, yoonLeft, yoonRight].forEach(table => {
+    table.forEach(row => row.cells.forEach(c => { if (c) quizPool.push(c); }));
+  });
+
+  // ---- Table builder ----
+  function buildTable(headerLabels, rows) {
+    const table = document.createElement('table');
+    table.className = 'kana-table';
+
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.appendChild(document.createElement('th')); // corner blank
+    headerLabels.forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      const labelTd = document.createElement('td');
+      labelTd.className = 'row-label';
+      labelTd.textContent = row.label;
+      tr.appendChild(labelTd);
+
+      row.cells.forEach(c => {
+        const td = document.createElement('td');
+        if (c) {
+          td.className = 'kana-cell' + (c.irregular ? ' irregular' : '');
+          td.innerHTML = `<span class="kana">${c.kana}</span>` +
+            (c.irregular ? `<span class="romaji-sub">${c.romaji}</span>` : '');
+        } else {
+          td.className = 'kana-cell empty';
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  // ---- Build chart overlay ----
+  const chartContainer = document.getElementById('chartContainer');
+
+  // Main grid + standalone ん, side by side
+  const mainBlock = document.createElement('div');
+  mainBlock.className = 'chart-block';
+  const mainFlex = document.createElement('div');
+  mainFlex.className = 'chart-row-flex';
+  mainFlex.appendChild(buildTable(['a','i','u','e','o'], mainRows));
+  mainFlex.appendChild(buildTable(['n'], [nCell]));
+  mainBlock.appendChild(mainFlex);
+  chartContainer.appendChild(mainBlock);
+
+  // Voiced (dakuten) + semi-voiced (handakuten)
+  const voicedBlock = document.createElement('div');
+  voicedBlock.className = 'chart-block';
+  const voicedHeading = document.createElement('h3');
+  voicedHeading.textContent = 'Dakuten & Handakuten';
+  voicedBlock.appendChild(voicedHeading);
+  const voicedFlex = document.createElement('div');
+  voicedFlex.className = 'chart-row-flex';
+  voicedFlex.appendChild(buildTable(['a','i','u','e','o'], voicedTop));
+  voicedFlex.appendChild(buildTable(['a','i','u','e','o'], voicedBottom));
+  voicedBlock.appendChild(voicedFlex);
+  chartContainer.appendChild(voicedBlock);
+
+  // Yōon combinations
+  const yoonBlock = document.createElement('div');
+  yoonBlock.className = 'chart-block';
+  const yoonHeading = document.createElement('h3');
+  yoonHeading.textContent = 'Yōon (Combinations)';
+  yoonBlock.appendChild(yoonHeading);
+  const yoonFlex = document.createElement('div');
+  yoonFlex.className = 'chart-row-flex';
+  yoonFlex.appendChild(buildTable(['ya','yu','yo'], yoonLeft));
+  yoonFlex.appendChild(buildTable(['ya','yu','yo'], yoonRight));
+  yoonBlock.appendChild(yoonFlex);
+  chartContainer.appendChild(yoonBlock);
+
+  // ---- Overlay open/close ----
+  const overlay = document.getElementById('overlay');
+  document.getElementById('showChartBtn').addEventListener('click', () => overlay.classList.add('open'));
+  document.getElementById('closeOverlayBtn').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+  // ---- Practice logic: Quiz Mode + Flash Mode ----
+  let mode = null;            // 'quiz' | 'flash'
+  let current = null;
+  let answered = false;
+
+  // Quiz Mode state
+  let quizQuestions = [];     // selected questions for this round (no repeats)
+  let quizIndex = 0;
+  let quizAnswers = [];       // {kana, romaji, userAnswer, correct}
+
+  const menuView = document.getElementById('menuView');
+  const practiceView = document.getElementById('practiceView');
+  const resultsView = document.getElementById('resultsView');
+  const showChartBtn = document.getElementById('showChartBtn');
+
+  const quizModeBtn = document.getElementById('quizModeBtn');
+  const flashModeBtn = document.getElementById('flashModeBtn');
+  const lengthPicker = document.getElementById('lengthPicker');
+  const lengthSelect = document.getElementById('lengthSelect');
+  const beginQuizBtn = document.getElementById('beginQuizBtn');
+
+  const progressDisplay = document.getElementById('progressDisplay');
+  const scoreDisplay = document.getElementById('scoreDisplay');
+  const characterDisplay = document.getElementById('characterDisplay');
+  const answerInput = document.getElementById('answerInput');
+
+  // Only allow letters a-z (romaji answers never need numbers, spaces, or punctuation)
+  answerInput.addEventListener('input', () => {
+    const filtered = answerInput.value.replace(/[^a-zA-Z]/g, '');
+    if (filtered !== answerInput.value) {
+      answerInput.value = filtered;
+    }
+  });
+  const feedback = document.getElementById('feedback');
+  const submitBtn = document.getElementById('submitBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const backToMenuBtn = document.getElementById('backToMenuBtn');
+
+  const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+  const resultsList = document.getElementById('resultsList');
+  const tryAgainBtn = document.getElementById('tryAgainBtn');
+  const backToMenuBtn2 = document.getElementById('backToMenuBtn2');
+
+  // Populate the length dropdown (10, 20, 30... up to pool size, plus "All")
+  (function populateLengthSelect() {
+    const increments = [10, 20, 30, 40, 50];
+    increments.forEach(n => {
+      if (n < quizPool.length) {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        lengthSelect.appendChild(opt);
+      }
+    });
+    const allOpt = document.createElement('option');
+    allOpt.value = 'all';
+    allOpt.textContent = `All (${quizPool.length})`;
+    lengthSelect.appendChild(allOpt);
+  })();
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function showView(view) {
+    menuView.style.display = view === 'menu' ? 'block' : 'none';
+    practiceView.style.display = view === 'practice' ? 'block' : 'none';
+    resultsView.style.display = view === 'results' ? 'block' : 'none';
+    const hideChart = mode === 'quiz' && (view === 'practice' || view === 'results');
+    showChartBtn.style.display = hideChart ? 'none' : 'inline-block';
+  }
+
+  function resetAnswerField() {
+    answered = false;
+    answerInput.value = '';
+    answerInput.disabled = false;
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+    submitBtn.style.display = 'inline-block';
+    nextBtn.style.display = 'none';
+    answerInput.focus();
+  }
+
+  // ---- Quiz Mode ----
+  quizModeBtn.addEventListener('click', () => {
+    lengthPicker.style.display = lengthPicker.style.display === 'flex' ? 'none' : 'flex';
+  });
+
+  beginQuizBtn.addEventListener('click', () => {
+    const val = lengthSelect.value;
+    const n = val === 'all' ? quizPool.length : Math.min(parseInt(val, 10), quizPool.length);
+    quizQuestions = shuffle(quizPool).slice(0, n);
+    quizIndex = 0;
+    quizAnswers = [];
+    mode = 'quiz';
+    progressDisplay.style.display = 'block';
+    scoreDisplay.style.display = 'none';
+    showView('practice');
+    loadQuizQuestion();
+  });
+
+  function loadQuizQuestion() {
+    current = quizQuestions[quizIndex];
+    progressDisplay.textContent = `Question ${quizIndex + 1} / ${quizQuestions.length}`;
+    characterDisplay.textContent = current.kana;
+    characterDisplay.classList.remove('placeholder');
+    resetAnswerField();
+  }
+
+  function submitQuizAnswer() {
+    const userAnswer = answerInput.value.trim().toLowerCase();
+    if (!userAnswer) return;
+    const correct = userAnswer === current.romaji;
+    quizAnswers.push({ kana: current.kana, romaji: current.romaji, userAnswer, correct });
+    quizIndex++;
+    if (quizIndex < quizQuestions.length) {
+      loadQuizQuestion();
+    } else {
+      showQuizResults();
+    }
+  }
+
+  function showQuizResults() {
+    const correctCount = quizAnswers.filter(a => a.correct).length;
+    finalScoreDisplay.textContent = `Score: ${correctCount} / ${quizAnswers.length}`;
+    resultsList.innerHTML = '';
+    quizAnswers.forEach(a => {
+      const item = document.createElement('div');
+      item.className = 'result-item ' + (a.correct ? 'correct' : 'incorrect');
+      item.innerHTML = `
+        <span class="result-kana">${a.kana}</span>
+        <span class="result-answers">
+          ${a.correct
+            ? `<span class="correct-answer">${a.romaji}</span>`
+            : `<span class="your-answer">${a.userAnswer || '(blank)'}</span><span class="correct-answer">${a.romaji}</span>`}
+        </span>
+      `;
+      resultsList.appendChild(item);
+    });
+    showView('results');
+  }
+
+  tryAgainBtn.addEventListener('click', () => {
+    quizQuestions = shuffle(quizPool).slice(0, quizQuestions.length);
+    quizIndex = 0;
+    quizAnswers = [];
+    showView('practice');
+    loadQuizQuestion();
+  });
+
+  // ---- Flash Mode ----
+  flashModeBtn.addEventListener('click', () => {
+    mode = 'flash';
+    progressDisplay.textContent = '';
+    progressDisplay.style.display = 'none';
+    scoreDisplay.style.display = 'none';
+    showView('practice');
+    loadFlashQuestion();
+  });
+
+  function loadFlashQuestion() {
+    current = quizPool[Math.floor(Math.random() * quizPool.length)];
+    characterDisplay.textContent = current.kana;
+    characterDisplay.classList.remove('placeholder');
+    resetAnswerField();
+  }
+
+  function submitFlashAnswer() {
+    if (answered) return;
+    const userAnswer = answerInput.value.trim().toLowerCase();
+    if (!userAnswer) return;
+    answered = true;
+    if (userAnswer === current.romaji) {
+      feedback.textContent = 'Correct!';
+      feedback.className = 'feedback correct';
+    } else {
+      feedback.textContent = `Incorrect. Answer: ${current.romaji}`;
+      feedback.className = 'feedback incorrect';
+    }
+    answerInput.disabled = true;
+    submitBtn.style.display = 'none';
+    nextBtn.style.display = 'inline-block';
+    nextBtn.focus();
+  }
+
+  // ---- Shared controls ----
+  function handleSubmit() {
+    if (mode === 'quiz') submitQuizAnswer();
+    else if (mode === 'flash') submitFlashAnswer();
+  }
+
+  submitBtn.addEventListener('click', handleSubmit);
+
+  nextBtn.addEventListener('click', () => {
+    if (mode === 'flash') loadFlashQuestion();
+  });
+
+  function isEnterKey(e) {
+    return e.key === 'Enter' || e.keyCode === 13 || e.which === 13;
+  }
+
+  answerInput.addEventListener('keydown', (e) => {
+    if (!isEnterKey(e)) return;
+    e.preventDefault();
+    if (mode === 'quiz') {
+      handleSubmit();
+    } else if (mode === 'flash') {
+      if (!answered) handleSubmit();
+      else loadFlashQuestion();
+    }
+  });
+
+  function backToMenu() {
+    mode = null;
+    lengthPicker.style.display = 'none';
+    showView('menu');
+  }
+  backToMenuBtn.addEventListener('click', backToMenu);
+  backToMenuBtn2.addEventListener('click', backToMenu);
+</script>
+
+</body>
+</html>
