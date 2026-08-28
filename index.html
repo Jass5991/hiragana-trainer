@@ -168,6 +168,10 @@
   }
   button:hover { opacity: 0.9; }
   button:active { transform: scale(0.97); }
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   button.secondary {
     background: var(--accent-soft);
     color: var(--accent);
@@ -181,6 +185,38 @@
     width: 100%;
     max-width: 420px;
     text-align: center;
+  }
+
+  .line-training-page {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: 0 4px 20px var(--shadow);
+    padding: 32px;
+    width: 100%;
+    max-width: 900px;
+    text-align: center;
+  }
+  .line-training-page h2 {
+    margin-top: 0;
+  }
+  .row-checkbox-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .row-checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  table.kana-table.selectable td.row-label {
+    width: 44px;
   }
 
   .score {
@@ -479,6 +515,7 @@
       <div class="mode-buttons">
         <button type="button" id="quizModeBtn" title="Fixed-length round. No feedback until the end, then see your full results.">Quiz Mode</button>
         <button type="button" id="flashModeBtn" class="secondary" title="Unlimited flashcards. See the correct answer after every question.">Flash Mode</button>
+        <button type="button" id="lineTrainingBtn" class="secondary" title="Pick specific rows from the chart, then flashcard just those characters.">Learning Mode</button>
       </div>
       <div class="length-picker" id="lengthPicker" style="display:none;">
         <label for="lengthSelect">Questions:</label>
@@ -514,6 +551,17 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- Learning Mode: full-page row selection -->
+  <div class="line-training-page" id="lineTrainingPage" style="display:none;">
+    <h2>Learning Mode</h2>
+    <div class="subtitle">Check the rows you want to practice, then start.</div>
+    <div id="lineTrainingGrid"></div>
+    <div class="quiz-controls">
+      <button type="button" id="startLineTrainingBtn" disabled>Start Training</button>
+      <button type="button" id="backFromLineTrainingBtn" class="secondary">Back to Menu</button>
+    </div>
   </div>
 
   <footer>
@@ -692,12 +740,10 @@
   }
 
   let quizPool = buildQuizPool(getScriptData());
+  let currentPool = quizPool; // Flash Mode's active pool: full quizPool, or a Learning Mode subset
 
   // ---- Table builder ----
-  function buildTable(headerLabels, rows) {
-    const table = document.createElement('table');
-    table.className = 'kana-table';
-
+  function buildTableHead(headerLabels) {
     const thead = document.createElement('thead');
     const headRow = document.createElement('tr');
     headRow.appendChild(document.createElement('th')); // corner blank
@@ -707,7 +753,25 @@
       headRow.appendChild(th);
     });
     thead.appendChild(headRow);
-    table.appendChild(thead);
+    return thead;
+  }
+
+  function buildKanaCellTd(c) {
+    const td = document.createElement('td');
+    if (c) {
+      td.className = 'kana-cell' + (c.irregular ? ' irregular' : '');
+      td.innerHTML = `<span class="kana">${c.kana}</span>` +
+        (c.irregular ? `<span class="romaji-sub">${c.romaji}</span>` : '');
+    } else {
+      td.className = 'kana-cell empty';
+    }
+    return td;
+  }
+
+  function buildTable(headerLabels, rows) {
+    const table = document.createElement('table');
+    table.className = 'kana-table';
+    table.appendChild(buildTableHead(headerLabels));
 
     const tbody = document.createElement('tbody');
     rows.forEach(row => {
@@ -717,17 +781,38 @@
       labelTd.textContent = row.label;
       tr.appendChild(labelTd);
 
-      row.cells.forEach(c => {
-        const td = document.createElement('td');
-        if (c) {
-          td.className = 'kana-cell' + (c.irregular ? ' irregular' : '');
-          td.innerHTML = `<span class="kana">${c.kana}</span>` +
-            (c.irregular ? `<span class="romaji-sub">${c.romaji}</span>` : '');
-        } else {
-          td.className = 'kana-cell empty';
-        }
-        tr.appendChild(td);
-      });
+      row.cells.forEach(c => tr.appendChild(buildKanaCellTd(c)));
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  // Same as buildTable, but the row-label cell holds a checkbox for row selection.
+  // tableKey namespaces the row keys (e.g. "main-2") so rows across tables don't collide.
+  function buildSelectableTable(headerLabels, rows, tableKey) {
+    const table = document.createElement('table');
+    table.className = 'kana-table selectable';
+    table.appendChild(buildTableHead(headerLabels));
+
+    const tbody = document.createElement('tbody');
+    rows.forEach((row, idx) => {
+      const rowKey = `${tableKey}-${idx}`;
+      lineTrainingRowMap[rowKey] = row.cells.filter(Boolean);
+
+      const tr = document.createElement('tr');
+      const labelTd = document.createElement('td');
+      labelTd.className = 'row-label';
+      const checkboxId = `rowcheck-${rowKey}`;
+      labelTd.innerHTML = `
+        <label class="row-checkbox-label" for="${checkboxId}">
+          <input type="checkbox" id="${checkboxId}" data-row-key="${rowKey}">
+          <span>${row.label || '•'}</span>
+        </label>
+      `;
+      tr.appendChild(labelTd);
+
+      row.cells.forEach(c => tr.appendChild(buildKanaCellTd(c)));
       tbody.appendChild(tr);
     });
     table.appendChild(tbody);
@@ -821,6 +906,86 @@
 
   renderChart();
 
+  // ---- Learning Mode: full-page row selection ----
+  const lineTrainingBtn = document.getElementById('lineTrainingBtn');
+  const lineTrainingPage = document.getElementById('lineTrainingPage');
+  const lineTrainingGrid = document.getElementById('lineTrainingGrid');
+  const startLineTrainingBtn = document.getElementById('startLineTrainingBtn');
+  const backFromLineTrainingBtn = document.getElementById('backFromLineTrainingBtn');
+  const quizCard = document.getElementById('quizCard');
+
+  let lineTrainingRowMap = {};   // rowKey -> array of cells (nulls removed)
+  let selectedLineRows = new Set();
+
+  function renderLineTrainingGrid() {
+    const data = getScriptData();
+    lineTrainingRowMap = {};
+    selectedLineRows = new Set();
+    lineTrainingGrid.innerHTML = '';
+    startLineTrainingBtn.disabled = true;
+
+    const mainBlock = document.createElement('div');
+    mainBlock.className = 'chart-block';
+    const mainFlex = document.createElement('div');
+    mainFlex.className = 'chart-row-flex';
+    mainFlex.appendChild(buildSelectableTable(['a','i','u','e','o'], data.mainRows, 'main'));
+    mainFlex.appendChild(buildSelectableTable(['n'], [data.nCell], 'n'));
+    mainBlock.appendChild(mainFlex);
+    lineTrainingGrid.appendChild(mainBlock);
+
+    const voicedBlock = document.createElement('div');
+    voicedBlock.className = 'chart-block';
+    const voicedHeading = document.createElement('h3');
+    voicedHeading.textContent = 'Dakuten & Handakuten';
+    voicedBlock.appendChild(voicedHeading);
+    const voicedFlex = document.createElement('div');
+    voicedFlex.className = 'chart-row-flex';
+    voicedFlex.appendChild(buildSelectableTable(['a','i','u','e','o'], data.voicedTop, 'voicedTop'));
+    voicedFlex.appendChild(buildSelectableTable(['a','i','u','e','o'], data.voicedBottom, 'voicedBottom'));
+    voicedBlock.appendChild(voicedFlex);
+    lineTrainingGrid.appendChild(voicedBlock);
+
+    const yoonBlock = document.createElement('div');
+    yoonBlock.className = 'chart-block';
+    const yoonHeading = document.createElement('h3');
+    yoonHeading.textContent = 'Yōon (Combinations)';
+    yoonBlock.appendChild(yoonHeading);
+    const yoonFlex = document.createElement('div');
+    yoonFlex.className = 'chart-row-flex';
+    yoonFlex.appendChild(buildSelectableTable(['ya','yu','yo'], data.yoonLeft, 'yoonLeft'));
+    yoonFlex.appendChild(buildSelectableTable(['ya','yu','yo'], data.yoonRight, 'yoonRight'));
+    yoonBlock.appendChild(yoonFlex);
+    lineTrainingGrid.appendChild(yoonBlock);
+  }
+
+  lineTrainingGrid.addEventListener('change', (e) => {
+    const checkbox = e.target.closest('input[type="checkbox"][data-row-key]');
+    if (!checkbox) return;
+    const key = checkbox.dataset.rowKey;
+    if (checkbox.checked) selectedLineRows.add(key);
+    else selectedLineRows.delete(key);
+    startLineTrainingBtn.disabled = selectedLineRows.size === 0;
+  });
+
+  lineTrainingBtn.addEventListener('click', () => {
+    renderLineTrainingGrid();
+    showView('lineTraining');
+  });
+
+  backFromLineTrainingBtn.addEventListener('click', () => backToMenu());
+
+  startLineTrainingBtn.addEventListener('click', () => {
+    const selectedCells = Array.from(selectedLineRows).flatMap(key => lineTrainingRowMap[key]);
+    if (!selectedCells.length) return;
+    currentPool = selectedCells;
+    mode = 'flash';
+    progressDisplay.textContent = '';
+    progressDisplay.style.display = 'none';
+    scoreDisplay.style.display = 'none';
+    showView('practice');
+    loadFlashQuestion();
+  });
+
   // ---- Overlay open/close ----
   const overlay = document.getElementById('overlay');
   document.getElementById('showChartBtn').addEventListener('click', () => overlay.classList.add('open'));
@@ -902,7 +1067,9 @@
     menuView.style.display = view === 'menu' ? 'block' : 'none';
     practiceView.style.display = view === 'practice' ? 'block' : 'none';
     resultsView.style.display = view === 'results' ? 'block' : 'none';
-    const hideChart = mode === 'quiz' && (view === 'practice' || view === 'results');
+    quizCard.style.display = view === 'lineTraining' ? 'none' : 'block';
+    lineTrainingPage.style.display = view === 'lineTraining' ? 'block' : 'none';
+    const hideChart = (mode === 'quiz' && (view === 'practice' || view === 'results')) || view === 'lineTraining';
     showChartBtn.style.display = hideChart ? 'none' : 'inline-block';
   }
 
@@ -986,6 +1153,7 @@
 
   // ---- Flash Mode ----
   flashModeBtn.addEventListener('click', () => {
+    currentPool = quizPool;
     mode = 'flash';
     progressDisplay.textContent = '';
     progressDisplay.style.display = 'none';
@@ -995,7 +1163,7 @@
   });
 
   function loadFlashQuestion() {
-    current = quizPool[Math.floor(Math.random() * quizPool.length)];
+    current = currentPool[Math.floor(Math.random() * currentPool.length)];
     characterDisplay.textContent = current.kana;
     characterDisplay.classList.remove('placeholder');
     resetAnswerField();
@@ -1077,6 +1245,7 @@
     katakanaLabel.classList.toggle('active', isKatakana);
 
     quizPool = buildQuizPool(getScriptData());
+    currentPool = quizPool;
     populateLengthSelect();
     renderChart();
     backToMenu();
