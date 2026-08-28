@@ -37,6 +37,18 @@
     --shadow: rgba(0,0,0,0.35);
     --overlay-bg: rgba(0,0,0,0.65);
   }
+  body.katakana {
+    --accent: #2563eb;
+    --accent-soft: #dbeafe;
+    --row-label-bg: #eaf1fb;
+    --irregular-bg: #e3edfc;
+  }
+  body.dark.katakana {
+    --accent: #8ab4ff;
+    --accent-soft: #2c3c5c;
+    --row-label-bg: #24344c;
+    --irregular-bg: #24344c;
+  }
   body {
     transition: background 0.2s ease, color 0.2s ease;
   }
@@ -89,6 +101,53 @@
   .icon-toggle:hover {
     opacity: 1;
     transform: scale(1.05);
+  }
+  .script-switch {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    padding: 6px 12px;
+    border-radius: 999px;
+    box-shadow: 0 2px 10px var(--shadow);
+    z-index: 50;
+    font-size: 0.8rem;
+  }
+  .script-switch-label {
+    color: var(--muted);
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    user-select: none;
+  }
+  .script-switch-label.active {
+    color: var(--accent);
+  }
+  .switch-track {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .switch-track .switch-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: transform 0.2s ease;
+  }
+  .switch-track.on .switch-thumb {
+    transform: translateX(18px);
   }
   button {
     font-family: inherit;
@@ -391,13 +450,20 @@
 </head>
 <body>
 
-  <h1>ひらがな Trainer</h1>
-  <div class="subtitle">Learn Hiragana through flashcard quizzes</div>
+  <h1 id="mainHeading">ひらがな Trainer</h1>
+  <div class="subtitle" id="subtitleText">Learn Hiragana through flashcard quizzes</div>
 
   <div class="top-buttons">
     <button type="button" id="showChartBtn">Hiragana Chart</button>
   </div>
 
+  <div class="script-switch" id="scriptSwitch">
+    <span class="script-switch-label active" id="hiraganaLabel">Hiragana</span>
+    <button type="button" class="switch-track" id="scriptToggleBtn" role="switch" aria-checked="false" title="Switch between Hiragana and Katakana">
+      <span class="switch-thumb"></span>
+    </button>
+    <span class="script-switch-label" id="katakanaLabel">Katakana</span>
+  </div>
   <button type="button" id="darkModeBtn" class="icon-toggle" title="Toggle dark mode">☀️</button>
 
   <div class="card" id="quizCard">
@@ -453,7 +519,7 @@
   <div class="overlay" id="overlay">
     <div class="overlay-content">
       <button type="button" class="close-btn" id="closeOverlayBtn">&times;</button>
-      <h2>Hiragana Chart</h2>
+      <h2 id="chartTitle">Hiragana Chart</h2>
       <div id="chartContainer"></div>
     </div>
   </div>
@@ -481,75 +547,145 @@
     });
   })();
 
-  // ---- Data: full hiragana set, structured to mirror a textbook a-i-u-e-o grid ----
+  // ---- Data: full hiragana + katakana sets, structured to mirror a textbook a-i-u-e-o grid ----
   // Each cell: {kana, romaji} or null for a non-existent combination.
   // "irregular: true" marks cells whose romaji doesn't follow the row's regular pattern (shown as subscript, like the PDF).
 
-  const mainRows = [
-    { label: "", cells: [
-      {kana:"あ", romaji:"a"}, {kana:"い", romaji:"i"}, {kana:"う", romaji:"u"}, {kana:"え", romaji:"e"}, {kana:"お", romaji:"o"}
-    ]},
-    { label: "k", cells: [
-      {kana:"か", romaji:"ka"}, {kana:"き", romaji:"ki"}, {kana:"く", romaji:"ku"}, {kana:"け", romaji:"ke"}, {kana:"こ", romaji:"ko"}
-    ]},
-    { label: "s", cells: [
-      {kana:"さ", romaji:"sa"}, {kana:"し", romaji:"shi", irregular:true}, {kana:"す", romaji:"su"}, {kana:"せ", romaji:"se"}, {kana:"そ", romaji:"so"}
-    ]},
-    { label: "t", cells: [
-      {kana:"た", romaji:"ta"}, {kana:"ち", romaji:"chi", irregular:true}, {kana:"つ", romaji:"tsu", irregular:true}, {kana:"て", romaji:"te"}, {kana:"と", romaji:"to"}
-    ]},
-    { label: "n", cells: [
-      {kana:"な", romaji:"na"}, {kana:"に", romaji:"ni"}, {kana:"ぬ", romaji:"nu"}, {kana:"ね", romaji:"ne"}, {kana:"の", romaji:"no"}
-    ]},
-    { label: "h", cells: [
-      {kana:"は", romaji:"ha"}, {kana:"ひ", romaji:"hi"}, {kana:"ふ", romaji:"fu", irregular:true}, {kana:"へ", romaji:"he"}, {kana:"ほ", romaji:"ho"}
-    ]},
-    { label: "m", cells: [
-      {kana:"ま", romaji:"ma"}, {kana:"み", romaji:"mi"}, {kana:"む", romaji:"mu"}, {kana:"め", romaji:"me"}, {kana:"も", romaji:"mo"}
-    ]},
-    { label: "y", cells: [
-      {kana:"や", romaji:"ya"}, null, {kana:"ゆ", romaji:"yu"}, null, {kana:"よ", romaji:"yo"}
-    ]},
-    { label: "r", cells: [
-      {kana:"ら", romaji:"ra"}, {kana:"り", romaji:"ri"}, {kana:"る", romaji:"ru"}, {kana:"れ", romaji:"re"}, {kana:"ろ", romaji:"ro"}
-    ]},
-    { label: "w", cells: [
-      {kana:"わ", romaji:"wa"}, null, null, null, {kana:"を", romaji:"o", irregular:true}
-    ]}
-  ];
-  const nCell = { label: "", cells: [{kana:"ん", romaji:"n", irregular:true}] }; // standalone, outside the a-i-u-e-o grid
+  const hiraganaData = {
+    mainRows: [
+      { label: "", cells: [
+        {kana:"あ", romaji:"a"}, {kana:"い", romaji:"i"}, {kana:"う", romaji:"u"}, {kana:"え", romaji:"e"}, {kana:"お", romaji:"o"}
+      ]},
+      { label: "k", cells: [
+        {kana:"か", romaji:"ka"}, {kana:"き", romaji:"ki"}, {kana:"く", romaji:"ku"}, {kana:"け", romaji:"ke"}, {kana:"こ", romaji:"ko"}
+      ]},
+      { label: "s", cells: [
+        {kana:"さ", romaji:"sa"}, {kana:"し", romaji:"shi", irregular:true}, {kana:"す", romaji:"su"}, {kana:"せ", romaji:"se"}, {kana:"そ", romaji:"so"}
+      ]},
+      { label: "t", cells: [
+        {kana:"た", romaji:"ta"}, {kana:"ち", romaji:"chi", irregular:true}, {kana:"つ", romaji:"tsu", irregular:true}, {kana:"て", romaji:"te"}, {kana:"と", romaji:"to"}
+      ]},
+      { label: "n", cells: [
+        {kana:"な", romaji:"na"}, {kana:"に", romaji:"ni"}, {kana:"ぬ", romaji:"nu"}, {kana:"ね", romaji:"ne"}, {kana:"の", romaji:"no"}
+      ]},
+      { label: "h", cells: [
+        {kana:"は", romaji:"ha"}, {kana:"ひ", romaji:"hi"}, {kana:"ふ", romaji:"fu", irregular:true}, {kana:"へ", romaji:"he"}, {kana:"ほ", romaji:"ho"}
+      ]},
+      { label: "m", cells: [
+        {kana:"ま", romaji:"ma"}, {kana:"み", romaji:"mi"}, {kana:"む", romaji:"mu"}, {kana:"め", romaji:"me"}, {kana:"も", romaji:"mo"}
+      ]},
+      { label: "y", cells: [
+        {kana:"や", romaji:"ya"}, null, {kana:"ゆ", romaji:"yu"}, null, {kana:"よ", romaji:"yo"}
+      ]},
+      { label: "r", cells: [
+        {kana:"ら", romaji:"ra"}, {kana:"り", romaji:"ri"}, {kana:"る", romaji:"ru"}, {kana:"れ", romaji:"re"}, {kana:"ろ", romaji:"ro"}
+      ]},
+      { label: "w", cells: [
+        {kana:"わ", romaji:"wa"}, null, null, null, {kana:"を", romaji:"o", irregular:true}
+      ]}
+    ],
+    nCell: { label: "", cells: [{kana:"ん", romaji:"n", irregular:true}] }, // standalone, outside the a-i-u-e-o grid
+    voicedTop: [
+      { label: "g", cells: [{kana:"が",romaji:"ga"},{kana:"ぎ",romaji:"gi"},{kana:"ぐ",romaji:"gu"},{kana:"げ",romaji:"ge"},{kana:"ご",romaji:"go"}] },
+      { label: "z", cells: [{kana:"ざ",romaji:"za"},{kana:"じ",romaji:"ji",irregular:true},{kana:"ず",romaji:"zu"},{kana:"ぜ",romaji:"ze"},{kana:"ぞ",romaji:"zo"}] },
+      { label: "d", cells: [{kana:"だ",romaji:"da"},{kana:"ぢ",romaji:"ji",irregular:true},{kana:"づ",romaji:"zu",irregular:true},{kana:"で",romaji:"de"},{kana:"ど",romaji:"do"}] }
+    ],
+    voicedBottom: [
+      { label: "b", cells: [{kana:"ば",romaji:"ba"},{kana:"び",romaji:"bi"},{kana:"ぶ",romaji:"bu"},{kana:"べ",romaji:"be"},{kana:"ぼ",romaji:"bo"}] },
+      { label: "p", cells: [{kana:"ぱ",romaji:"pa"},{kana:"ぴ",romaji:"pi"},{kana:"ぷ",romaji:"pu"},{kana:"ぺ",romaji:"pe"},{kana:"ぽ",romaji:"po"}] }
+    ],
+    yoonLeft: [
+      { label: "k", cells: [{kana:"きゃ",romaji:"kya"},{kana:"きゅ",romaji:"kyu"},{kana:"きょ",romaji:"kyo"}] },
+      { label: "s", cells: [{kana:"しゃ",romaji:"sha"},{kana:"しゅ",romaji:"shu"},{kana:"しょ",romaji:"sho"}] },
+      { label: "t", cells: [{kana:"ちゃ",romaji:"cha"},{kana:"ちゅ",romaji:"chu"},{kana:"ちょ",romaji:"cho"}] },
+      { label: "n", cells: [{kana:"にゃ",romaji:"nya"},{kana:"にゅ",romaji:"nyu"},{kana:"にょ",romaji:"nyo"}] },
+      { label: "h", cells: [{kana:"ひゃ",romaji:"hya"},{kana:"ひゅ",romaji:"hyu"},{kana:"ひょ",romaji:"hyo"}] },
+      { label: "m", cells: [{kana:"みゃ",romaji:"mya"},{kana:"みゅ",romaji:"myu"},{kana:"みょ",romaji:"myo"}] }
+    ],
+    yoonRight: [
+      { label: "r", cells: [{kana:"りゃ",romaji:"rya"},{kana:"りゅ",romaji:"ryu"},{kana:"りょ",romaji:"ryo"}] },
+      { label: "g", cells: [{kana:"ぎゃ",romaji:"gya"},{kana:"ぎゅ",romaji:"gyu"},{kana:"ぎょ",romaji:"gyo"}] },
+      { label: "j", cells: [{kana:"じゃ",romaji:"ja"},{kana:"じゅ",romaji:"ju"},{kana:"じょ",romaji:"jo"}] },
+      { label: "b", cells: [{kana:"びゃ",romaji:"bya"},{kana:"びゅ",romaji:"byu"},{kana:"びょ",romaji:"byo"}] },
+      { label: "p", cells: [{kana:"ぴゃ",romaji:"pya"},{kana:"ぴゅ",romaji:"pyu"},{kana:"ぴょ",romaji:"pyo"}] }
+    ]
+  };
 
-  const voicedTop = [
-    { label: "g", cells: [{kana:"が",romaji:"ga"},{kana:"ぎ",romaji:"gi"},{kana:"ぐ",romaji:"gu"},{kana:"げ",romaji:"ge"},{kana:"ご",romaji:"go"}] },
-    { label: "z", cells: [{kana:"ざ",romaji:"za"},{kana:"じ",romaji:"ji",irregular:true},{kana:"ず",romaji:"zu"},{kana:"ぜ",romaji:"ze"},{kana:"ぞ",romaji:"zo"}] },
-    { label: "d", cells: [{kana:"だ",romaji:"da"},{kana:"ぢ",romaji:"ji",irregular:true},{kana:"づ",romaji:"zu",irregular:true},{kana:"で",romaji:"de"},{kana:"ど",romaji:"do"}] }
-  ];
-  const voicedBottom = [
-    { label: "b", cells: [{kana:"ば",romaji:"ba"},{kana:"び",romaji:"bi"},{kana:"ぶ",romaji:"bu"},{kana:"べ",romaji:"be"},{kana:"ぼ",romaji:"bo"}] },
-    { label: "p", cells: [{kana:"ぱ",romaji:"pa"},{kana:"ぴ",romaji:"pi"},{kana:"ぷ",romaji:"pu"},{kana:"ぺ",romaji:"pe"},{kana:"ぽ",romaji:"po"}] }
-  ];
+  const katakanaData = {
+    mainRows: [
+      { label: "", cells: [
+        {kana:"ア", romaji:"a"}, {kana:"イ", romaji:"i"}, {kana:"ウ", romaji:"u"}, {kana:"エ", romaji:"e"}, {kana:"オ", romaji:"o"}
+      ]},
+      { label: "k", cells: [
+        {kana:"カ", romaji:"ka"}, {kana:"キ", romaji:"ki"}, {kana:"ク", romaji:"ku"}, {kana:"ケ", romaji:"ke"}, {kana:"コ", romaji:"ko"}
+      ]},
+      { label: "s", cells: [
+        {kana:"サ", romaji:"sa"}, {kana:"シ", romaji:"shi", irregular:true}, {kana:"ス", romaji:"su"}, {kana:"セ", romaji:"se"}, {kana:"ソ", romaji:"so"}
+      ]},
+      { label: "t", cells: [
+        {kana:"タ", romaji:"ta"}, {kana:"チ", romaji:"chi", irregular:true}, {kana:"ツ", romaji:"tsu", irregular:true}, {kana:"テ", romaji:"te"}, {kana:"ト", romaji:"to"}
+      ]},
+      { label: "n", cells: [
+        {kana:"ナ", romaji:"na"}, {kana:"ニ", romaji:"ni"}, {kana:"ヌ", romaji:"nu"}, {kana:"ネ", romaji:"ne"}, {kana:"ノ", romaji:"no"}
+      ]},
+      { label: "h", cells: [
+        {kana:"ハ", romaji:"ha"}, {kana:"ヒ", romaji:"hi"}, {kana:"フ", romaji:"fu", irregular:true}, {kana:"ヘ", romaji:"he"}, {kana:"ホ", romaji:"ho"}
+      ]},
+      { label: "m", cells: [
+        {kana:"マ", romaji:"ma"}, {kana:"ミ", romaji:"mi"}, {kana:"ム", romaji:"mu"}, {kana:"メ", romaji:"me"}, {kana:"モ", romaji:"mo"}
+      ]},
+      { label: "y", cells: [
+        {kana:"ヤ", romaji:"ya"}, null, {kana:"ユ", romaji:"yu"}, null, {kana:"ヨ", romaji:"yo"}
+      ]},
+      { label: "r", cells: [
+        {kana:"ラ", romaji:"ra"}, {kana:"リ", romaji:"ri"}, {kana:"ル", romaji:"ru"}, {kana:"レ", romaji:"re"}, {kana:"ロ", romaji:"ro"}
+      ]},
+      { label: "w", cells: [
+        {kana:"ワ", romaji:"wa"}, null, null, null, {kana:"ヲ", romaji:"o", irregular:true}
+      ]}
+    ],
+    nCell: { label: "", cells: [{kana:"ン", romaji:"n", irregular:true}] },
+    voicedTop: [
+      { label: "g", cells: [{kana:"ガ",romaji:"ga"},{kana:"ギ",romaji:"gi"},{kana:"グ",romaji:"gu"},{kana:"ゲ",romaji:"ge"},{kana:"ゴ",romaji:"go"}] },
+      { label: "z", cells: [{kana:"ザ",romaji:"za"},{kana:"ジ",romaji:"ji",irregular:true},{kana:"ズ",romaji:"zu"},{kana:"ゼ",romaji:"ze"},{kana:"ゾ",romaji:"zo"}] },
+      { label: "d", cells: [{kana:"ダ",romaji:"da"},{kana:"ヂ",romaji:"ji",irregular:true},{kana:"ヅ",romaji:"zu",irregular:true},{kana:"デ",romaji:"de"},{kana:"ド",romaji:"do"}] }
+    ],
+    voicedBottom: [
+      { label: "b", cells: [{kana:"バ",romaji:"ba"},{kana:"ビ",romaji:"bi"},{kana:"ブ",romaji:"bu"},{kana:"ベ",romaji:"be"},{kana:"ボ",romaji:"bo"}] },
+      { label: "p", cells: [{kana:"パ",romaji:"pa"},{kana:"ピ",romaji:"pi"},{kana:"プ",romaji:"pu"},{kana:"ペ",romaji:"pe"},{kana:"ポ",romaji:"po"}] }
+    ],
+    yoonLeft: [
+      { label: "k", cells: [{kana:"キャ",romaji:"kya"},{kana:"キュ",romaji:"kyu"},{kana:"キョ",romaji:"kyo"}] },
+      { label: "s", cells: [{kana:"シャ",romaji:"sha"},{kana:"シュ",romaji:"shu"},{kana:"ショ",romaji:"sho"}] },
+      { label: "t", cells: [{kana:"チャ",romaji:"cha"},{kana:"チュ",romaji:"chu"},{kana:"チョ",romaji:"cho"}] },
+      { label: "n", cells: [{kana:"ニャ",romaji:"nya"},{kana:"ニュ",romaji:"nyu"},{kana:"ニョ",romaji:"nyo"}] },
+      { label: "h", cells: [{kana:"ヒャ",romaji:"hya"},{kana:"ヒュ",romaji:"hyu"},{kana:"ヒョ",romaji:"hyo"}] },
+      { label: "m", cells: [{kana:"ミャ",romaji:"mya"},{kana:"ミュ",romaji:"myu"},{kana:"ミョ",romaji:"myo"}] }
+    ],
+    yoonRight: [
+      { label: "r", cells: [{kana:"リャ",romaji:"rya"},{kana:"リュ",romaji:"ryu"},{kana:"リョ",romaji:"ryo"}] },
+      { label: "g", cells: [{kana:"ギャ",romaji:"gya"},{kana:"ギュ",romaji:"gyu"},{kana:"ギョ",romaji:"gyo"}] },
+      { label: "j", cells: [{kana:"ジャ",romaji:"ja"},{kana:"ジュ",romaji:"ju"},{kana:"ジョ",romaji:"jo"}] },
+      { label: "b", cells: [{kana:"ビャ",romaji:"bya"},{kana:"ビュ",romaji:"byu"},{kana:"ビョ",romaji:"byo"}] },
+      { label: "p", cells: [{kana:"ピャ",romaji:"pya"},{kana:"ピュ",romaji:"pyu"},{kana:"ピョ",romaji:"pyo"}] }
+    ]
+  };
 
-  const yoonLeft = [
-    { label: "k", cells: [{kana:"きゃ",romaji:"kya"},{kana:"きゅ",romaji:"kyu"},{kana:"きょ",romaji:"kyo"}] },
-    { label: "s", cells: [{kana:"しゃ",romaji:"sha"},{kana:"しゅ",romaji:"shu"},{kana:"しょ",romaji:"sho"}] },
-    { label: "t", cells: [{kana:"ちゃ",romaji:"cha"},{kana:"ちゅ",romaji:"chu"},{kana:"ちょ",romaji:"cho"}] },
-    { label: "n", cells: [{kana:"にゃ",romaji:"nya"},{kana:"にゅ",romaji:"nyu"},{kana:"にょ",romaji:"nyo"}] },
-    { label: "h", cells: [{kana:"ひゃ",romaji:"hya"},{kana:"ひゅ",romaji:"hyu"},{kana:"ひょ",romaji:"hyo"}] },
-    { label: "m", cells: [{kana:"みゃ",romaji:"mya"},{kana:"みゅ",romaji:"myu"},{kana:"みょ",romaji:"myo"}] }
-  ];
-  const yoonRight = [
-    { label: "r", cells: [{kana:"りゃ",romaji:"rya"},{kana:"りゅ",romaji:"ryu"},{kana:"りょ",romaji:"ryo"}] },
-    { label: "g", cells: [{kana:"ぎゃ",romaji:"gya"},{kana:"ぎゅ",romaji:"gyu"},{kana:"ぎょ",romaji:"gyo"}] },
-    { label: "j", cells: [{kana:"じゃ",romaji:"ja"},{kana:"じゅ",romaji:"ju"},{kana:"じょ",romaji:"jo"}] },
-    { label: "b", cells: [{kana:"びゃ",romaji:"bya"},{kana:"びゅ",romaji:"byu"},{kana:"びょ",romaji:"byo"}] },
-    { label: "p", cells: [{kana:"ぴゃ",romaji:"pya"},{kana:"ぴゅ",romaji:"pyu"},{kana:"ぴょ",romaji:"pyo"}] }
-  ];
+  let currentScript = 'hiragana'; // 'hiragana' | 'katakana'
+  function getScriptData() {
+    return currentScript === 'hiragana' ? hiraganaData : katakanaData;
+  }
 
   // Flatten every kana across all tables into a single quiz pool
-  const quizPool = [];
-  [mainRows, [nCell], voicedTop, voicedBottom, yoonLeft, yoonRight].forEach(table => {
-    table.forEach(row => row.cells.forEach(c => { if (c) quizPool.push(c); }));
-  });
+  function buildQuizPool(data) {
+    const pool = [];
+    [data.mainRows, [data.nCell], data.voicedTop, data.voicedBottom, data.yoonLeft, data.yoonRight].forEach(table => {
+      table.forEach(row => row.cells.forEach(c => { if (c) pool.push(c); }));
+    });
+    return pool;
+  }
+
+  let quizPool = buildQuizPool(getScriptData());
 
   // ---- Table builder ----
   function buildTable(headerLabels, rows) {
@@ -619,57 +755,65 @@
     return wrap;
   }
 
-  function buildUsageGuide() {
+  function buildUsageGuide(data) {
+    const example = data.mainRows[1].cells[2]; // "k" row, "u" column
     const wrap = document.createElement('div');
     const heading = document.createElement('h3');
     heading.textContent = 'How to Read This Chart';
     wrap.appendChild(heading);
     const p = document.createElement('p');
     p.className = 'usage-guide';
-    p.innerHTML = `Find row <span class="highlight">k</span> and column <span class="highlight">u</span> to get <span class="usage-kana">く</span> (<span class="highlight">ku</span>).`;
+    p.innerHTML = `Find row <span class="highlight">k</span> and column <span class="highlight">u</span> to get <span class="usage-kana">${example.kana}</span> (<span class="highlight">${example.romaji}</span>).`;
     wrap.appendChild(p);
     return wrap;
   }
 
-  // Main grid + standalone ん, side by side, with the pronunciation guide stacked under ん
-  const mainBlock = document.createElement('div');
-  mainBlock.className = 'chart-block';
-  const mainFlex = document.createElement('div');
-  mainFlex.className = 'chart-row-flex';
-  mainFlex.appendChild(buildTable(['a','i','u','e','o'], mainRows));
-  const nColumn = document.createElement('div');
-  nColumn.appendChild(buildTable(['n'], [nCell]));
-  nColumn.appendChild(buildPronunciationGuide());
-  nColumn.appendChild(buildUsageGuide());
-  mainFlex.appendChild(nColumn);
-  mainBlock.appendChild(mainFlex);
-  chartContainer.appendChild(mainBlock);
+  function renderChart() {
+    const data = getScriptData();
+    chartContainer.innerHTML = '';
 
-  // Voiced (dakuten) + semi-voiced (handakuten)
-  const voicedBlock = document.createElement('div');
-  voicedBlock.className = 'chart-block';
-  const voicedHeading = document.createElement('h3');
-  voicedHeading.textContent = 'Dakuten & Handakuten';
-  voicedBlock.appendChild(voicedHeading);
-  const voicedFlex = document.createElement('div');
-  voicedFlex.className = 'chart-row-flex';
-  voicedFlex.appendChild(buildTable(['a','i','u','e','o'], voicedTop));
-  voicedFlex.appendChild(buildTable(['a','i','u','e','o'], voicedBottom));
-  voicedBlock.appendChild(voicedFlex);
-  chartContainer.appendChild(voicedBlock);
+    // Main grid + standalone ん/ン, side by side, with the pronunciation guide stacked under it
+    const mainBlock = document.createElement('div');
+    mainBlock.className = 'chart-block';
+    const mainFlex = document.createElement('div');
+    mainFlex.className = 'chart-row-flex';
+    mainFlex.appendChild(buildTable(['a','i','u','e','o'], data.mainRows));
+    const nColumn = document.createElement('div');
+    nColumn.appendChild(buildTable(['n'], [data.nCell]));
+    nColumn.appendChild(buildPronunciationGuide());
+    nColumn.appendChild(buildUsageGuide(data));
+    mainFlex.appendChild(nColumn);
+    mainBlock.appendChild(mainFlex);
+    chartContainer.appendChild(mainBlock);
 
-  // Yōon combinations
-  const yoonBlock = document.createElement('div');
-  yoonBlock.className = 'chart-block';
-  const yoonHeading = document.createElement('h3');
-  yoonHeading.textContent = 'Yōon (Combinations)';
-  yoonBlock.appendChild(yoonHeading);
-  const yoonFlex = document.createElement('div');
-  yoonFlex.className = 'chart-row-flex';
-  yoonFlex.appendChild(buildTable(['ya','yu','yo'], yoonLeft));
-  yoonFlex.appendChild(buildTable(['ya','yu','yo'], yoonRight));
-  yoonBlock.appendChild(yoonFlex);
-  chartContainer.appendChild(yoonBlock);
+    // Voiced (dakuten) + semi-voiced (handakuten)
+    const voicedBlock = document.createElement('div');
+    voicedBlock.className = 'chart-block';
+    const voicedHeading = document.createElement('h3');
+    voicedHeading.textContent = 'Dakuten & Handakuten';
+    voicedBlock.appendChild(voicedHeading);
+    const voicedFlex = document.createElement('div');
+    voicedFlex.className = 'chart-row-flex';
+    voicedFlex.appendChild(buildTable(['a','i','u','e','o'], data.voicedTop));
+    voicedFlex.appendChild(buildTable(['a','i','u','e','o'], data.voicedBottom));
+    voicedBlock.appendChild(voicedFlex);
+    chartContainer.appendChild(voicedBlock);
+
+    // Yōon combinations
+    const yoonBlock = document.createElement('div');
+    yoonBlock.className = 'chart-block';
+    const yoonHeading = document.createElement('h3');
+    yoonHeading.textContent = 'Yōon (Combinations)';
+    yoonBlock.appendChild(yoonHeading);
+    const yoonFlex = document.createElement('div');
+    yoonFlex.className = 'chart-row-flex';
+    yoonFlex.appendChild(buildTable(['ya','yu','yo'], data.yoonLeft));
+    yoonFlex.appendChild(buildTable(['ya','yu','yo'], data.yoonRight));
+    yoonBlock.appendChild(yoonFlex);
+    chartContainer.appendChild(yoonBlock);
+  }
+
+  renderChart();
 
   // ---- Overlay open/close ----
   const overlay = document.getElementById('overlay');
@@ -721,7 +865,8 @@
   const backToMenuBtn2 = document.getElementById('backToMenuBtn2');
 
   // Populate the length dropdown (10, 20, 30... up to pool size, plus "All")
-  (function populateLengthSelect() {
+  function populateLengthSelect() {
+    lengthSelect.innerHTML = '';
     const increments = [10, 20, 30, 40, 50];
     increments.forEach(n => {
       if (n < quizPool.length) {
@@ -735,7 +880,8 @@
     allOpt.value = 'all';
     allOpt.textContent = `All (${quizPool.length})`;
     lengthSelect.appendChild(allOpt);
-  })();
+  }
+  populateLengthSelect();
 
   function shuffle(arr) {
     const a = arr.slice();
@@ -901,6 +1047,44 @@
   }
   backToMenuBtn.addEventListener('click', backToMenu);
   backToMenuBtn2.addEventListener('click', backToMenu);
+
+  // ---- Script toggle: Hiragana <-> Katakana ----
+  const scriptToggleBtn = document.getElementById('scriptToggleBtn');
+  const hiraganaLabel = document.getElementById('hiraganaLabel');
+  const katakanaLabel = document.getElementById('katakanaLabel');
+  const mainHeading = document.getElementById('mainHeading');
+  const subtitleText = document.getElementById('subtitleText');
+  const chartTitle = document.getElementById('chartTitle');
+
+  function applyScript(script) {
+    currentScript = script;
+    const isKatakana = script === 'katakana';
+
+    mainHeading.textContent = isKatakana ? 'カタカナ Trainer' : 'ひらがな Trainer';
+    subtitleText.textContent = `Learn ${isKatakana ? 'Katakana' : 'Hiragana'} through flashcard quizzes`;
+    showChartBtn.textContent = isKatakana ? 'Katakana Chart' : 'Hiragana Chart';
+    chartTitle.textContent = isKatakana ? 'Katakana Chart' : 'Hiragana Chart';
+    document.body.classList.toggle('katakana', isKatakana);
+    scriptToggleBtn.classList.toggle('on', isKatakana);
+    scriptToggleBtn.setAttribute('aria-checked', String(isKatakana));
+    hiraganaLabel.classList.toggle('active', !isKatakana);
+    katakanaLabel.classList.toggle('active', isKatakana);
+
+    quizPool = buildQuizPool(getScriptData());
+    populateLengthSelect();
+    renderChart();
+    backToMenu();
+    localStorage.setItem('kana-script', currentScript);
+  }
+
+  scriptToggleBtn.addEventListener('click', () => {
+    applyScript(currentScript === 'hiragana' ? 'katakana' : 'hiragana');
+  });
+  hiraganaLabel.addEventListener('click', () => applyScript('hiragana'));
+  katakanaLabel.addEventListener('click', () => applyScript('katakana'));
+
+  const storedScript = localStorage.getItem('kana-script');
+  if (storedScript === 'katakana') applyScript('katakana');
 </script>
 
 </body>
