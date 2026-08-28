@@ -291,6 +291,37 @@
     color: var(--muted);
     margin-bottom: 8px;
   }
+  .pronunciation-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .pronunciation-list li {
+    font-size: 0.9rem;
+  }
+  .pronunciation-list .romaji {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .pronunciation-list .example {
+    color: var(--muted);
+  }
+  .usage-guide {
+    font-size: 0.9rem;
+    margin: 0;
+    color: var(--muted);
+  }
+  .usage-guide .highlight {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .usage-guide .usage-kana {
+    font-size: 1.1rem;
+    color: var(--ink);
+  }
   .chart-row-flex {
     display: flex;
     gap: 20px;
@@ -413,7 +444,10 @@
 
   </div>
 
-  <footer>All 46 base kana, dakuten, handakuten, and yōon combinations included.</footer>
+  <footer>
+    All 46 base kana, dakuten, handakuten, and yōon combinations included.
+    <br>This page was entirely written by Claude (Anthropic).
+  </footer>
 
   <!-- Overlay -->
   <div class="overlay" id="overlay">
@@ -561,13 +595,53 @@
   // ---- Build chart overlay ----
   const chartContainer = document.getElementById('chartContainer');
 
-  // Main grid + standalone ん, side by side
+  // Pronunciation guide for the five core vowel sounds
+  const vowelExamples = [
+    { romaji: 'a', example: 'like "a" in "father"' },
+    { romaji: 'i', example: 'like "ee" in "see"' },
+    { romaji: 'u', example: 'like "oo" in "food"' },
+    { romaji: 'e', example: 'like "e" in "bed"' },
+    { romaji: 'o', example: 'like "o" in "go"' }
+  ];
+  function buildPronunciationGuide() {
+    const wrap = document.createElement('div');
+    const heading = document.createElement('h3');
+    heading.textContent = 'Pronunciation Guide';
+    wrap.appendChild(heading);
+    const list = document.createElement('ul');
+    list.className = 'pronunciation-list';
+    vowelExamples.forEach(v => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="romaji">${v.romaji}</span> — <span class="example">${v.example}</span>`;
+      list.appendChild(li);
+    });
+    wrap.appendChild(list);
+    return wrap;
+  }
+
+  function buildUsageGuide() {
+    const wrap = document.createElement('div');
+    const heading = document.createElement('h3');
+    heading.textContent = 'How to Read This Chart';
+    wrap.appendChild(heading);
+    const p = document.createElement('p');
+    p.className = 'usage-guide';
+    p.innerHTML = `Find row <span class="highlight">k</span> and column <span class="highlight">u</span> to get <span class="usage-kana">く</span> (<span class="highlight">ku</span>).`;
+    wrap.appendChild(p);
+    return wrap;
+  }
+
+  // Main grid + standalone ん, side by side, with the pronunciation guide stacked under ん
   const mainBlock = document.createElement('div');
   mainBlock.className = 'chart-block';
   const mainFlex = document.createElement('div');
   mainFlex.className = 'chart-row-flex';
   mainFlex.appendChild(buildTable(['a','i','u','e','o'], mainRows));
-  mainFlex.appendChild(buildTable(['n'], [nCell]));
+  const nColumn = document.createElement('div');
+  nColumn.appendChild(buildTable(['n'], [nCell]));
+  nColumn.appendChild(buildPronunciationGuide());
+  nColumn.appendChild(buildUsageGuide());
+  mainFlex.appendChild(nColumn);
   mainBlock.appendChild(mainFlex);
   chartContainer.appendChild(mainBlock);
 
