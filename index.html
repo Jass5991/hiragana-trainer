@@ -218,6 +218,17 @@
   table.kana-table.selectable td.row-label {
     width: 44px;
   }
+  table.kana-table.number-table th:nth-child(3),
+  table.kana-table.number-table td:nth-child(3) {
+    width: 90px;
+  }
+  table.kana-table.number-table .kana-cell .kana {
+    font-size: 1rem;
+  }
+  table.kana-table.number-table td.row-label {
+    width: 60px;
+    font-size: 0.7rem;
+  }
 
   .score {
     color: var(--muted);
@@ -497,6 +508,7 @@
 
   <div class="top-buttons">
     <button type="button" id="showChartBtn">Hiragana Chart</button>
+    <button type="button" id="showNumbersBtn" class="secondary">Numbers</button>
   </div>
 
   <div class="script-switch" id="scriptSwitch">
@@ -575,6 +587,15 @@
       <button type="button" class="close-btn" id="closeOverlayBtn">&times;</button>
       <h2 id="chartTitle">Hiragana Chart</h2>
       <div id="chartContainer"></div>
+    </div>
+  </div>
+
+  <!-- Numbers Overlay -->
+  <div class="overlay" id="numbersOverlay">
+    <div class="overlay-content">
+      <button type="button" class="close-btn" id="closeNumbersOverlayBtn">&times;</button>
+      <h2>Numbers</h2>
+      <div id="numbersContainer"></div>
     </div>
   </div>
 
@@ -906,6 +927,127 @@
 
   renderChart();
 
+  // ---- Numbers panel ----
+  const numbersData = {
+    ones: [
+      { num: 1, kanji: '一', romaji: 'ichi' },
+      { num: 2, kanji: '二', romaji: 'ni' },
+      { num: 3, kanji: '三', romaji: 'san' },
+      { num: 4, kanji: '四', romaji: 'yon' },
+      { num: 5, kanji: '五', romaji: 'go' },
+      { num: 6, kanji: '六', romaji: 'roku' },
+      { num: 7, kanji: '七', romaji: 'nana' },
+      { num: 8, kanji: '八', romaji: 'hachi' },
+      { num: 9, kanji: '九', romaji: 'kyuu' },
+      { num: 10, kanji: '十', romaji: 'juu' }
+    ],
+    teens: [
+      { num: 11, kanji: '十一', romaji: 'juuichi' },
+      { num: 12, kanji: '十二', romaji: 'juuni' },
+      { num: 13, kanji: '十三', romaji: 'juusan' },
+      { num: 14, kanji: '十四', romaji: 'juuyon' },
+      { num: 15, kanji: '十五', romaji: 'juugo' },
+      { num: 16, kanji: '十六', romaji: 'juuroku' },
+      { num: 17, kanji: '十七', romaji: 'juunana' },
+      { num: 18, kanji: '十八', romaji: 'juuhachi' },
+      { num: 19, kanji: '十九', romaji: 'juukyuu' },
+      { num: 20, kanji: '二十', romaji: 'nijuu' }
+    ],
+    magnitudes: [
+      { num: 100, kanji: '百', romaji: 'hyaku' },
+      { num: 1000, kanji: '千', romaji: 'sen' },
+      { num: 10000, kanji: '万', romaji: 'man' },
+      { num: 100000, kanji: '十万', romaji: 'juuman' }
+    ]
+  };
+
+  function buildNumberTable(rows) {
+    const table = document.createElement('table');
+    table.className = 'kana-table number-table';
+    table.appendChild(buildTableHead(['Kanji', 'Romaji']));
+
+    const tbody = document.createElement('tbody');
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      const numTd = document.createElement('td');
+      numTd.className = 'row-label';
+      numTd.textContent = r.num.toLocaleString();
+      tr.appendChild(numTd);
+
+      const kanjiTd = document.createElement('td');
+      kanjiTd.className = 'kana-cell';
+      kanjiTd.innerHTML = `<span class="kana">${r.kanji}</span>`;
+      tr.appendChild(kanjiTd);
+
+      const romajiTd = document.createElement('td');
+      romajiTd.className = 'kana-cell';
+      romajiTd.innerHTML = `<span class="kana">${r.romaji}</span>`;
+      tr.appendChild(romajiTd);
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+  }
+
+  function buildNumberPatternGuide() {
+    const wrap = document.createElement('div');
+    wrap.style.maxWidth = '280px';
+    wrap.style.textAlign = 'left';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Beyond 20: The Pattern';
+    wrap.appendChild(heading);
+    const p = document.createElement('p');
+    p.className = 'usage-guide';
+    p.innerHTML = `
+      Japanese numbers are built like simple math, so there's no need to
+      memorize new words all the way to 100.<br><br>
+      <span class="highlight">Tens</span> = digit + <span class="usage-kana">十</span> (juu, "10").
+      E.g. <span class="highlight">三</span> (3) + <span class="highlight">十</span> =
+      <span class="usage-kana">三十</span> (sanjuu, "30").<br><br>
+      <span class="highlight">Beyond a ten</span> = ten + digit. E.g.
+      <span class="usage-kana">四十五</span> (yonjuu-go) = 四十 (40) + 五 (5) = 45.
+    `;
+    wrap.appendChild(p);
+    return wrap;
+  }
+
+  const numbersContainer = document.getElementById('numbersContainer');
+
+  function renderNumbers() {
+    numbersContainer.innerHTML = '';
+
+    // Column 1: 1-10. Column 2: 11-20, with the counting pattern explained underneath.
+    const topBlock = document.createElement('div');
+    topBlock.className = 'chart-block';
+    const topFlex = document.createElement('div');
+    topFlex.className = 'chart-row-flex';
+    topFlex.appendChild(buildNumberTable(numbersData.ones));
+    const teensColumn = document.createElement('div');
+    teensColumn.appendChild(buildNumberTable(numbersData.teens));
+    teensColumn.appendChild(buildNumberPatternGuide());
+    topFlex.appendChild(teensColumn);
+    topBlock.appendChild(topFlex);
+    numbersContainer.appendChild(topBlock);
+
+    // Bigger units: hundreds, thousands, ten-thousands, hundred-thousands
+    const magnitudeBlock = document.createElement('div');
+    magnitudeBlock.className = 'chart-block';
+    const magnitudeHeading = document.createElement('h3');
+    magnitudeHeading.textContent = 'Bigger Units';
+    magnitudeBlock.appendChild(magnitudeHeading);
+    magnitudeBlock.appendChild(buildNumberTable(numbersData.magnitudes));
+    numbersContainer.appendChild(magnitudeBlock);
+  }
+
+  renderNumbers();
+
+  const numbersOverlay = document.getElementById('numbersOverlay');
+  const showNumbersBtn = document.getElementById('showNumbersBtn');
+  showNumbersBtn.addEventListener('click', () => numbersOverlay.classList.add('open'));
+  document.getElementById('closeNumbersOverlayBtn').addEventListener('click', () => numbersOverlay.classList.remove('open'));
+  numbersOverlay.addEventListener('click', (e) => { if (e.target === numbersOverlay) numbersOverlay.classList.remove('open'); });
+
   // ---- Learning Mode: full-page row selection ----
   const lineTrainingBtn = document.getElementById('lineTrainingBtn');
   const lineTrainingPage = document.getElementById('lineTrainingPage');
@@ -1071,6 +1213,7 @@
     lineTrainingPage.style.display = view === 'lineTraining' ? 'block' : 'none';
     const hideChart = (mode === 'quiz' && (view === 'practice' || view === 'results')) || view === 'lineTraining';
     showChartBtn.style.display = hideChart ? 'none' : 'inline-block';
+    showNumbersBtn.style.display = hideChart ? 'none' : 'inline-block';
   }
 
   function resetAnswerField() {
